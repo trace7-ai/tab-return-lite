@@ -1,18 +1,5 @@
-# Update package
-*.zip
-*.xpi
-
-# Generated manifests
-manifest.json
-
-### VisualStudioCode ###
-.vscode/*
-
-### Claude Code ###
-.claude/
-
-### Node ###
 node_modules/
-
-# Test logs
+dist/
+test-results/
+.DS_Store
 *.log

@@ -1,33 +1,21 @@
 {
-  "name": "duplicate-tabs-closer",
+  "name": "tab-return-lite",
   "version": "1.0.0",
-  "description": "Duplicate Tabs Closer detects and closes duplicate tabs.",
-  "main": "background.js",
+  "private": true,
+  "type": "module",
+  "description": "回到已打开：中文、轻量的 Chrome 跨窗口标签页去重扩展",
+  "license": "GPL-3.0-only",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "lint:css": "stylelint \"panel/common.css\" \"popup/popup.css\" \"optionPage/optionPage.css\"",
-    "lint:css:fix": "stylelint \"panel/common.css\" \"popup/popup.css\" \"optionPage/optionPage.css\" --fix",
-    "lint:html": "htmlhint \"popup/popup.html\" \"optionPage/optionPage.html\"",
-    "lint:all": "npm run lint && npm run lint:css && npm run lint:html"
+    "test": "node --test tests/core.test.js",
+    "test:browser": "node tests/browser.mjs",
+    "check": "node scripts/check.mjs",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.10.0",
-    "globals": "^17.12.0",
-    "htmlhint": "^1.9.2",
-    "stylelint": "^17.15.0",
-    "stylelint-config-standard": "^40.0.0"
+    "playwright": "1.58.2"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Peuj/duplicate-tabs-closer.git"
-  },
-  "author": "Peuj",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/Peuj/duplicate-tabs-closer/issues"
-  },
-  "homepage": "https://github.com/Peuj/duplicate-tabs-closer#readme"
+    "url": "https://github.com/trace7-ai/tab-return-lite.git"
+  }
 }

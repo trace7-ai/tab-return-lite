@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>回到已打开</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div><h1>回到已打开</h1><p>少开一页，接着做事。</p></div>
+    <span class="tag">轻量版</span>
+  </header>
+  <main>
+    <label class="switch-row" for="enabled">
+      <span><strong>自动去重</strong><small id="mode">正在读取设置…</small></span>
+      <input type="checkbox" id="enabled" role="switch" disabled>
+    </label>
+    <p class="hint">新标签页首次加载完成后，发现相同网址就关闭新页，切回原来的窗口。已有页面的编辑、刷新和跳转不触发自动关闭。</p>
+    <div class="rules"><span>跨窗口查找</span><span>完整网址匹配</span><span>保留原页状态</span></div>
+    <details>
+      <summary>允许这些网站重复打开</summary>
+      <label for="excluded">每行一个域名，包含其子域名。</label>
+      <textarea id="excluded" rows="3" placeholder="例如：example.com" spellcheck="false"></textarea>
+      <div class="actions"><button id="exclude-current" type="button">加入当前网站</button><button id="save" class="primary" type="button">保存</button></div>
+    </details>
+    <section aria-labelledby="duplicates-heading">
+      <div class="section-heading"><h2 id="duplicates-heading">已有重复页</h2><button id="refresh" type="button">刷新</button></div>
+      <p class="hint">保留一页，其余逐个确认关闭。固定页、正在播放声音的页面不关闭。</p>
+      <div id="duplicates">正在查找…</div>
+    </section>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <footer>仅在本机运行 · 不读取网页正文</footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

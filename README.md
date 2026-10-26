@@ -1,347 +1,96 @@
-# Duplicate Tabs Closer
+# 回到已打开 · Tab Return Lite
 
-Duplicate Tabs Closer detects and closes duplicate tabs automatically or displays them in a panel for manual review.
+Chrome 中文轻量扩展：重复打开网页时，关闭新标签页，切回已经打开的页面及窗口。
 
-* Built with the [WebExtensions API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions)
-* Supports Chrome, Firefox, Edge, Opera, Vivaldi, and Brave
-* Firefox Multi-Account Containers are supported
+这是 [Peuj/duplicate-tabs-closer](https://github.com/Peuj/duplicate-tabs-closer) 的精简 fork。保留上游 Git 历史、许可证与图标，针对日常数据开发重新整理运行代码和中文界面。
 
-## Supported Browsers
+![中文弹窗：暂停、重复页列表及手动关闭](docs/popup.png)
 
-| Browser | Store | Notes |
-| --- | --- | --- |
-| Chrome | [Chrome Web Store](https://chrome.google.com/webstore/detail/duplicate-tabs-closer/gnmdbogfankgjepgglmmfmbnimcmcjle) | Full support |
-| Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/duplicate-tabs-closer) | Full support including Multi-Account Containers |
-| Microsoft Edge | Chrome Web Store | Full support |
-| Opera | Chrome Web Store | Full support |
-| Vivaldi | Chrome Web Store | Full support |
-| Brave | Chrome Web Store | Full support |
+## 使用
 
-> **Note:** The **Container** scope options are exclusive to Firefox and require the [Multi-Account Containers](https://support.mozilla.org/en-US/kb/containers) feature. They are not available on Chrome, Edge, Opera, Vivaldi, or Brave.
+1. 克隆本仓库，或下载源代码后解压。
+2. 在 Chrome 中打开 `chrome://extensions`，开启右上角“开发者模式”。
+3. 点击“加载已解压的扩展程序”，选择仓库中的 **`extension` 文件夹**。
+4. 固定工具栏上的“回到已打开”。默认开启自动去重，范围覆盖同一 Chrome 配置文件中的所有普通窗口。
 
-## Tree Style Tab (Firefox)
+无需安装 Node.js 或执行构建即可使用。若拿到 `npm run package` 生成的 ZIP，解压后直接选择含 `manifest.json` 的文件夹。
 
-When [Tree Style Tab](https://addons.mozilla.org/en-US/firefox/addon/tree-style-tab/) (TST) v4.4.0 or later is installed, Duplicate Tabs Closer uses the TST API to preserve a closed duplicate tab's child tabs rather than orphaning them. If TST is not installed, or is older than v4.4.0, the extension falls back to standard tab removal with no loss of other functionality.
+不要同时开启另一个自动去重扩展，以免两个扩展同时处理同一组标签页。
 
-## Accessing Options
+## 行为约定
 
-The extension offers two configuration interfaces:
+- **新开的网页**：首个 HTTP(S) 页面加载完成后，查找相同网址；找到后关闭新页，激活原页并切回原窗口。原窗口最小化时将其恢复。
+- **保留原页状态**：不刷新、不移动原标签页，因此原页未提交的编辑内容继续保留。
+- **已有网页**：编辑、刷新和站内跳转不触发自动关闭。此前积累的重复页可在弹窗中查看，逐个确认关闭。
+- **完整匹配网址**：保留路径、查询参数、参数顺序和 `#` 锚点，不按标题或域名合并。
+- **暂停**：开关关闭后允许自由打开重复页；恢复时只处理之后新开的页，不追溯清理。
+- **排除网站**：每行一个域名，例如 `example.com`；该域名及其子域名都允许重复打开，也不列入手动清理。
+- **保护页面**：新页如果已固定或正在播放声音，不自动关闭。手动清理也保护这些页面。
+- **普通配置文件内运行**：不跨 Chrome 用户配置文件，不在无痕模式运行，不处理 `chrome://`、本地文件或扩展页面。
 
-* **Popup panel:** click the extension icon in the toolbar. Provides quick access to a configurable subset of options and the list of current duplicate tabs.
-* **Options page:** click the gear icon (⚙) at the top-right of the popup, or open your browser's Extensions settings and choose *Options* for Duplicate Tabs Closer. Provides access to all settings.
+## 数据开发场景
 
-In the Options page, each option in the **Matching rules** section has an eye icon (👁) that controls whether that option is visible in the popup panel.
+默认规则适合任务、报表和在线 SQL 编辑器：
 
-## Options
+| 示例 | 结果 |
+|---|---|
+| 两次打开 `/task?id=100` | 关闭新页，回到原页 |
+| `/task?id=100` 与 `/task?id=101` | 分别保留 |
+| `/report?id=100#sql` 与 `/report?id=100#result` | 分别保留 |
+| 同一 URL，已有编辑页未保存 | 保留原页，不刷新 |
+| 同一页面需要并排比较 | 先暂停，或将该网站加入排除名单 |
 
-### On Duplicate Tab Detected
+对 Dorado、风神这类页面，不默认忽略任何查询参数。跟踪参数不同也会分别保留；如后续有明确的页面身份规则，再按具体网站增加归一化规则。
 
-Controls what the extension does when a duplicate tab is opened.
+扩展无法看到网页正文，也无法判断不同标签页中的业务状态是否相同。需要长期保留多个相同 URL 的编辑器、首页或工作台时，应将该网站排除。
 
-| Value | Description |
-| --- | --- |
-| **Do nothing** *(default)* | Monitors tabs and updates the badge counter. No automatic action is taken. |
-| **Close tab automatically** | Immediately closes the duplicate tab when it is detected. |
+## 范围与边界
 
-#### On Remaining Tab
+- 自动模式等待首个网页加载完成，允许首次 HTTP 重定向；超过 60 秒仍未完成则放弃自动关闭。
+- 首个页面加载完成后发生的客户端跳转、SPA 路由改变，不再自动去重，可以手动处理。
+- 新建空白页可以稍后输入网址；一分钟计时从首次 HTTP(S) 导航开始。
+- Chrome 启动事件后的 10 秒暂不登记新页，减少会话恢复期间的自动关闭。这是启动宽限，并非对所有慢速恢复过程的完整识别。
+- 两张页同时首次加载时保留一个可用副本，不保证以标签创建时间决定先后；已有可用页面优先作为返回目标。
+- 右键“复制标签页”也会去重；需要有意复制时先暂停。
+- 设置更新不会关闭已打开的页面。后台休眠后，未完成新页的识别状态从会话存储恢复。
 
-> Only active when **On duplicate tab detected** is set to *Close tab automatically*.
+## 轻量化
 
-Determines what happens to the kept tab after its duplicate is closed.
+只保留 `tabs` 和 `storage` 两项权限，使用 Chrome Manifest V3 后台事件。无运行时依赖，无内容脚本，无远程请求、统计上报或定时轮询。
 
-| Value | Description |
-| --- | --- |
-| **Do nothing** | Nothing further happens after the duplicate is closed. |
-| **Activate** *(default)* | Switches focus to the kept tab. |
-| **Default tab behaviour** | Moves the kept tab to the position of the closed tab and activates it if needed, mimicking the browser's normal tab behaviour. |
+删除上游的多语言资源、主题系统、图标字体、模糊标题比较、正则规则编辑器、Firefox 容器和 Tree Style Tab 兼容层。保留中文弹窗、跨窗口返回、暂停、网站排除、重复页手动清理。
 
-#### Intentional Duplicate Protection
+设置只存储在本机 `storage.local`；候选标签 ID 和加载时间存储在 `storage.session`，不保存浏览历史或网页正文。
 
-> Only active when **On duplicate tab detected** is set to *Close tab automatically*.
+## 开发与验证
 
-Tabs opened on purpose using the browser's built-in **Duplicate Tab** command are never auto-closed. They are still detected and shown in the duplicate tabs list (marked with a shield icon), so you can review and close them manually if needed. Navigating the duplicated tab to a different URL removes the protection.
+Node.js 22 或更高版本：
 
-> **Note:** Intentional duplicate protection is supported on Chrome and other Chromium-based browsers (Edge, Vivaldi, Brave) only. Detection relies on the order in which browser events fire: the navigation event arrives before the tab creation event only for the built-in Duplicate Tab command, distinguishing it from links or address bar navigation.
->
-> **Firefox:** Intentional duplicate protection is not available on Firefox due to a browser bug ([Bug 1701900](https://bugzilla.mozilla.org/show_bug.cgi?id=1701900) and a regression introduced in Firefox 153 that prevents extensions from detecting tab duplication). Tabs duplicated via the Duplicate Tab command will be treated as normal duplicates and auto-closed. Other browsers are not currently supported.
+```bash
+npm ci
+npm test
+npm run check
+npx playwright install chromium
+npm run test:browser
+npm run package
+```
 
-### Priority & Exclusions
+`npm test` 使用 Node 内置测试器。Playwright 只作为开发依赖，用于在独立临时配置文件中验证真实扩展；不进入安装包。无界面模式验证窗口激活请求和标签选中状态；操作系统窗口焦点需运行 `HEADED=1 npm run test:browser`，并保持测试浏览器在前台。
 
-Determines which of two duplicate tabs is kept when one must be closed, and defines which tabs are excluded from detection entirely. Rules are applied in this order:
-
-1. Pinned tab preference (if *Keep pinned tab* is enabled)
-2. Active tab preference (if *Keep the active tab* is enabled)
-3. HTTPS preference (if *Keep tab with HTTPS* is enabled)
-4. Age-based preference (*Keep older tab* / *Keep newer tab*)
-5. Active window preference (if *Prioritize active window* is enabled and scope covers multiple windows)
-
-| Option | Default | Description |
-| --- | --- | --- |
-| **Keep older tab** | on | Keeps the tab that was opened first. |
-| **Keep newer tab** | off | Keeps the most recently opened tab. |
-| **Keep and reload older tab** | off | Keeps the older tab but reloads it with the newer tab's URL. Useful when the newer URL contains updated content such as a redirect destination. |
-| **Keep tab with HTTPS** | on | When one tab uses HTTP and the other HTTPS for the same URL, the HTTPS tab is kept. Also normalises `http://` to `https://` during URL comparison so the two are treated as duplicates. |
-| **Keep pinned tab** | on | A pinned tab is always kept; the unpinned duplicate is closed instead. |
-| **Keep the active tab** | on | When one of two duplicate tabs in the same window is the currently active (selected) tab, that tab is kept. Only applies to same-window duplicates; cross-window preference is handled by *Prioritize active window*. |
-| **Prioritize active window** | on | When duplicates span multiple windows and the age-based preference would close the tab in the currently focused window, keeps that tab instead. Only applies when **Scope** is set to *All windows* or *Container in all windows*. |
-
-> The first three options (Keep older tab / Keep newer tab / Keep and reload older tab) are mutually exclusive. Only one is active at a time.
-
-#### Skip blank tabs
-
-> Available in the **Options page** only.
-
-When enabled, blank tabs (`about:blank` and new tab pages) are completely invisible to the extension: they are never shown in the duplicate tabs list, never auto-closed, and never used as a reference when comparing tabs. This is distinct from the whitelist: whitelisted tabs are still detected and shown; skipped blank tabs are not processed at all.
-
-#### Whitelisted URLs
-
-> Available in the **Options page** only.
-
-A list of URL patterns, one per line. Whitelisted tabs are always detected and shown in the duplicate tabs list, marked with a tooltip indicating they are whitelisted. In *Close tab automatically* mode, they are never auto-closed. When the **Hide whitelisted tabs** button is active, they are also excluded from the **Close duplicates** button in manual mode.
-
-**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally. Lines wrapped in `/…/` are treated as regular expressions: `/^(?!.*google\.com)/` whitelists everything except Google.
+测试覆盖完整 URL 匹配、窗口激活、原页输入保留、不同参数和锚点、HTTP 重定向、暂停、排除、手动关闭、并发打开、目标变化及 MV3 后台重启。浏览器界面截图输出到 `test-results/popup.png`。
 
 ```text
-https://docs.google.com/*
-*://github.com/*/issues
-/^(?!.*google\.com)/
+extension/       可直接加载的扩展，零运行时依赖
+  core.js        匹配、状态和关闭流程
+  background.js  Chrome 事件与弹窗消息
+  popup.*        中文弹窗
+  icons/         保留的上游图标
+scripts/         语法和权限检查、打包
+tests/           单元测试和独立浏览器测试
 ```
 
-> **Note (Firefox):** On Firefox 153 and later, a warning may appear here if the extension has not been granted access to local `file://` URLs. To resolve it, open `about:addons`, find Duplicate Tabs Closer, and check the **Permissions** tab to enable file access.
+## 来源与许可证
 
-### Matching Rules
+沿用 [GPL-3.0](LICENSE)。上游版本与变更说明见 [NOTICE.md](NOTICE.md)。本分支是独立维护的精简版本，不代表上游作者。
 
-Controls how two tabs are compared to determine whether they are duplicates.
-
-| Option | Default | Description |
-| --- | --- | --- |
-| **Ignore case in URL** | off | Treats uppercase and lowercase as equal (`Example.com` = `example.com`). |
-| **Ignore 'www' in URL domain name** | off | Treats `www.example.com` and `example.com` as identical. |
-| **Ignore hash part in URL** | off | Ignores everything after `#` (`page.html#intro` = `page.html#setup`). Has no effect when *Ignore path part* is enabled. |
-| **Ignore query parameters in URL (search part)** | off | Ignores the query string (everything after `?`). Has no effect when *Ignore path part* is enabled. |
-| **Ignore path part in URL (domain only)** | off | Compares only the origin (scheme + domain), ignoring path, query string, and hash. When this is enabled, *Ignore hash part* and *Ignore search part* are redundant. |
-| **Detect duplicates by** | URL only | Controls how tabs are matched: **URL only** uses URL comparison only (default). **URL match or title match** also closes tabs whose page titles match, even across different URLs: useful for pages that display the same title on different URLs. **URL match and same title** keeps tabs with the same URL but different titles: useful when you rename tabs to distinguish them. |
-| **% title similarity** | 100 | Minimum similarity percentage (1–100) for two titles to be considered a match. `100` requires an exact match (case-insensitive). Only active when *Detect duplicates by* is set to *URL match or title match*. |
-
-#### URL Rules
-
-Each rule is a row with a **type** and a **pattern**. Each row has a checkbox to enable or disable the rule: unchecking it disables the rule without deleting it; disabled rules are stored but skipped during duplicate detection. Three rule types are available.
-
-##### Group
-
-Any two tabs whose URLs both match the same rule are treated as duplicates, even if their full URLs differ. Useful for grouping all tabs from a section of a site as duplicates of each other regardless of which specific page is open.
-
-Pattern syntax: `*` matches any sequence of characters. All other characters match literally. Patterns are tested as substrings of the full URL, so including the protocol (`https://`) is optional but makes rules more precise. For more complex matching, wrap the pattern in `/` slashes to use a regular expression: `/regex/flags`.
-
-```text
-example.com/items/*
-```
-
-With this rule, `https://example.com/items/42` and `https://example.com/items/43` are treated as duplicates: both match the pattern, so whichever was opened first is kept and the other is closed.
-
-```text
-example.com/items/*/comments
-```
-
-Matches any comments page under any item. `https://example.com/items/42/comments` and `https://example.com/items/43/comments` are duplicates.
-
-```text
-/example\.com\/(items|pages)\/.*/
-```
-
-A regex rule that matches both `/items/` and `/pages/` URLs, treating them all as duplicates of each other.
-
-##### Normalize
-
-Rewrites a URL to a canonical form before comparison. Two tabs whose URLs produce the same canonical form are treated as duplicates. Two tabs for different content are never collapsed, because they produce different canonical URLs.
-
-Two syntaxes are available.
-
-**Hostname glob:** normalizes the hostname. `*` matches any sequence of characters including `.`. The canonical hostname is the pattern with `*` replaced by `x`. The path and query string are preserved, so only tabs at the same path are treated as duplicates.
-
-```text
-example.*
-```
-
-With this rule, `https://example.com/items/42` and `https://example.net/items/42` are treated as duplicates (same path, different TLD). But `https://example.com/items/42` and `https://example.net/items/43` are not (different path).
-
-**URL regex:** rewrites the full URL using a capture group. Wrap the pattern in `/` slashes and include at least one capture group. The URL is normalized to whatever group 1 captures. Useful for treating a base page and all its subpaths as the same URL.
-
-```text
-/(https?:\/\/example\.com\/items\/\d+).*/
-```
-
-With this rule, `https://example.com/items/42` and `https://example.com/items/42/comments` both normalize to `https://example.com/items/42` and are treated as duplicates, while `https://example.com/items/43` remains distinct.
-
-```text
-/(https?:\/\/[^\/]+\/[^\/]+).*/
-```
-
-A general pattern that works on any site: normalizes any URL to its first two path segments. Use a site-specific pattern (like the one above) when you want to limit the rule to one site.
-
-##### Path depth
-
-Treats tabs on a given hostname as duplicates when their URLs share the same first N path segments. Unlike a URL regex Normalize rule which scopes to a specific path pattern, Path depth applies to all paths on the hostname uniformly. Enter the hostname in the text field (supports `*` wildcard) and the number of segments to keep in the depth field.
-
-Use **Path depth** when the rule should apply to the entire hostname. Use **Normalize (URL regex)** instead when you want to scope the rule to a specific section of the site (e.g. only `/items/` pages, not everything on the domain).
-
-```text
-example.com   depth: 2
-```
-
-`https://example.com/items/42` and `https://example.com/items/42/comments` both have the same first two segments (`items` and `42`), so they normalize to `https://example.com/items/42` and are treated as duplicates. `https://example.com/items/43` has a different second segment and is not affected.
-
-##### Rule ordering
-
-Within Normalize and Path depth rules, exact rules (no `*` wildcard in the hostname) are applied before wildcard rules, regardless of the order they appear in the list. A specific rule such as `docs.example.com` depth 1 will always take priority over a broader wildcard rule such as `*.example.com` depth 3, even if the wildcard rule appears earlier in the list. Group rules are applied in the order they appear and are not reordered.
-
-**When to use which type:** a Group rule makes every matching tab a duplicate of every other matching tab regardless of content. `example.com/items/*` closes all your open item tabs as duplicates of each other, even if they show different items. Normalize and Path depth keep tabs separate unless they resolve to the exact same canonical URL, so item 42 and item 43 are never collapsed together. Between Normalize (URL regex) and Path depth: a URL regex rule applies only to paths that match the pattern, leaving the rest of the site unaffected. Path depth applies to every path on the hostname uniformly.
-
-#### Title Pattern Rules
-
-Works identically to URL Group rules but is applied to the page title instead of the URL. Any two tabs whose titles both match the same pattern are treated as duplicates.
-
-Only active when *Detect duplicates by* is set to *URL match or title match*.
-
-**Pattern syntax:** `*` matches any sequence of characters. All other characters match literally. Wrap in `/` slashes for regex: `/regex/flags`.
-
-```text
-* - Webmail
-Projects - *
-```
-
-> **Pattern syntax note:** The Whitelist, URL Group rules, URL Path depth rules, and Title Pattern Rules all support the same syntax for hostname/URL patterns. Use `*` as a wildcard (matches any sequence of characters). To use a regular expression, wrap the pattern in `/` slashes: `/regex/flags`. Plain patterns treat `.`, `+`, `?`, `(`, `)` etc. as literals, not regex metacharacters.
-
-### Scope
-
-Defines which tabs are included when searching for duplicates.
-
-| Value | Default | Browser | Description |
-| --- | --- | --- | --- |
-| **Active window** | on | All | Searches for duplicates only within the currently focused browser window. |
-| **All windows** | off | All | Searches for duplicates across all open browser windows. |
-| **Container in active window** | off | **Firefox only** | Duplicates are detected only among tabs that share the same [container](https://support.mozilla.org/en-US/kb/containers) within the active window. Tabs in different containers are never treated as duplicates of each other. |
-| **Container in all windows** | off | **Firefox only** | Same as above but searches across all open windows. |
-
-> The **Container** options require Firefox with the [Multi-Account Containers](https://support.mozilla.org/en-US/kb/containers) feature enabled.
-
-### Theme
-
-> Available in the **Options page** only.
-
-| Option | Default | Description |
-| --- | --- | --- |
-| **Theme** | Sky *(default)* | Visual theme for the extension panel. See [Themes](#themes) below. |
-
-#### Themes
-
-11 themes are available from the **Theme** dropdown in the Options page:
-
-**Light themes:** Sky *(default)*, Sage, Rose, Amber, Slate, Violet
-
-**Dark themes:** Ocean Night, Charcoal, Midnight Purple, Dark Teal, OLED Black
-
-### Popup
-
-> Available in the **Options page** only.
-
-| Option | Default | Description |
-| --- | --- | --- |
-| **Popup layout** | Two columns | Layout of the popup panel. *Single column* shows options above the duplicate tabs list. *Two columns* shows them side by side. |
-| **Close popup after closing duplicate tabs** | off | Automatically closes the popup panel after the *Close duplicates* button is clicked. |
-| **Open popup on duplicate detected** | off | Automatically opens the popup panel whenever a new duplicate tab is detected. The Options section collapses automatically when the popup is opened this way, giving more space to the duplicate tabs list. |
-
-### Badge
-
-> Available in the **Options page** only.
-
-| Option | Default | Description |
-| --- | --- | --- |
-| **Duplicate tabs badge color** | `#f22121` (red) | Color of the extension icon badge when duplicate tabs are detected. |
-| **No duplicate tabs badge color** | `#1e90ff` (blue) | Color of the badge when no duplicates exist. Only relevant when *Show badge if no duplicate tabs* is enabled. |
-| **Show badge if no duplicate tabs** | on | Always displays the badge. When off, the badge is hidden entirely when there are no duplicates. |
-
-### Popup Panel
-
-In the duplicate tabs list, tabs that will be closed show a strikethrough title. The tab that will be kept is shown at full brightness.
-
-* **Grouped view:** click the group icon in the duplicate tabs footer to switch between flat and grouped views. In grouped view, duplicate tabs are organised by matching rule group, collapsed by default. Each group shows a count badge and a close button to close all tabs in the group at once. Expand/collapse state per group is preserved while the panel is open. The view preference is saved and shared with the options page.
-
-* **Hide whitelisted tabs:** click the hide-whitelisted icon in the duplicate tabs footer to suppress whitelisted duplicate groups from the badge count and popup list. A small count bubble on the button shows how many groups are hidden. When active, the **Close duplicates** button also skips whitelisted tabs. The preference is saved and shared with the options page.
-
-* **Hide options column:** in two-column layout, click the chevron tab on the left edge of the duplicate tabs column to hide the options column. The popup narrows to focus on the duplicate tabs list. Click the chevron again to restore the options column. The state is saved and restored the next time the popup is opened.
-
-* **Shrunk mode:** toggle the compress icon in the popup to hide all unpinned sections, keeping the panel compact. Sections can be pinned with the pin icon (📌) in the popup panel so they stay visible when shrunk mode is active.
-
-* **Pause monitoring:** click the pause icon in the popup or options page header to temporarily stop duplicate tab detection. While paused:
-  * The extension icon badge shows "⏸" on a grey background
-  * The pause button turns amber so the paused state is always visible
-  * The mode is automatically set to "Do nothing"
-  * The "On duplicate tab detected" setting is disabled
-  * No new duplicate tabs are detected or closed
-  * Click the play icon or use the keyboard shortcut to resume
-
-* **Popup visibility (eye icon):** in the Options page, each option in the **Matching Rules** section has an eye icon (👁). Enabling it makes the option visible in the popup panel; disabling it hides it.
-
-| Matching Rules option | Visible in popup by default |
-| --- | --- |
-| Ignore case in URL | No |
-| Ignore 'www' in URL domain name | No |
-| Ignore hash part in URL | No |
-| Ignore query parameters in URL (search part) | No |
-| Ignore path part in URL | Yes |
-| Detect duplicates by | Yes |
-| % title similarity | Yes |
-| URL rules | No |
-| Title pattern rules | No |
-
-> When the URL rules eye icon is enabled, URL rules are shown in the popup as a read-only list, but only when at least one rule exists. Patterns, types, and enabled/disabled state are visible but cannot be changed from the popup. To add, edit, remove, or toggle rules, open the Options page.
-
-### Hotkeys
-
-No default keyboard shortcuts are set to avoid conflicts with browser built-ins.
-You can assign custom shortcuts in your browser settings:
-
-| Command | Description |
-| --- | --- |
-| Close all duplicate tabs | Closes all currently detected duplicate tabs |
-| Toggle auto-close / manual mode | Switches between auto-close and manual mode |
-| Pause or resume duplicate tab monitoring | Temporarily stops and restarts detection |
-
-To configure shortcuts:
-
-* **Chrome / Edge / Brave / Vivaldi:** open `chrome://extensions/shortcuts`
-* **Opera:** open `opera://extensions/shortcuts`
-* **Firefox:** open `about:addons`, click the gear icon, then choose *Manage Extension Shortcuts*
-
-## Building
-
-A build script is included that packages the extension for each browser.
-
-**Requirements:** Windows with PowerShell (built-in on Windows 7 and later).
-
-Run from the repository root:
-
-```bat
-build\build.bat
-```
-
-Or run the PowerShell script directly:
-
-```powershell
-# Build both Chrome and Firefox packages (default)
-powershell -ExecutionPolicy Bypass -File build\build.ps1
-
-# Build Chrome only
-powershell -ExecutionPolicy Bypass -File build\build.ps1 -Target chrome
-
-# Build Firefox only
-powershell -ExecutionPolicy Bypass -File build\build.ps1 -Target firefox
-```
-
-**Output files** (created in the repository root):
-
-| File | Browser |
-| --- | --- |
-| `duplicate-tabs-closer-chrome.zip` | Chrome, Edge, Opera, Vivaldi, Brave |
-| `duplicate-tabs-closer-firefox.xpi` | Firefox |
+实现参考 Chrome 官方文档：[Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs)、[Windows API](https://developer.chrome.com/docs/extensions/reference/api/windows)、[Storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)、[Service worker 生命周期](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)。

@@ -9,6 +9,9 @@ chrome.tabs.onCreated.addListener(tab => { controller.created(tab).catch(report)
 chrome.tabs.onUpdated.addListener((id, changes) => {
   if (changes.status || changes.url) controller.updated(id).catch(report);
 });
+chrome.webNavigation.onCommitted.addListener(details => {
+  controller.committed(details).catch(report);
+});
 chrome.tabs.onRemoved.addListener(id => { controller.removed(id).catch(report); });
 chrome.runtime.onStartup.addListener(() => { controller.startup().catch(report); });
 chrome.runtime.onInstalled.addListener(() => { controller.ready().catch(report); });

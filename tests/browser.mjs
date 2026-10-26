@@ -54,6 +54,8 @@ try {
   context.on('weberror', error => errors.push(error.error().message));
   worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
   await api(() => {
+    globalThis.navigationTrace = [];
+    chrome.webNavigation.onCommitted.addListener(details => navigationTrace.push(details));
     globalThis.focusTrace = [];
     const update = chrome.windows.update.bind(chrome.windows);
     chrome.windows.update = async (...args) => {
@@ -106,10 +108,26 @@ try {
   await closed(redirect.id);
   console.log('通过：HTTP 重定向按最终网址去重。');
 
-  await api(({ id, url }) => chrome.tabs.update(id, { url }), { id: different.id, url });
+  const existingPage = context.pages().find(page => page.url() === `${base}/report?id=2#sql`);
+  await existingPage.evaluate(url => { location.href = url; }, url);
   await settled(different.id);
   assert.ok((await getTabs()).some(tab => tab.id === different.id));
-  console.log('通过：已有页面跳转到重复地址时不自动关闭。');
+  await existingPage.reload();
+  await settled(different.id);
+  assert.ok((await getTabs()).some(tab => tab.id === different.id));
+  console.log('通过：已有页面站内跳转及刷新到重复地址时不自动关闭。');
+
+  const addressTab = await api(url => chrome.tabs.create({ url }), `${base}/address-start`);
+  await settled(addressTab.id);
+  const addressPage = context.pages().find(page => page.url() === `${base}/address-start`);
+  const addressSession = await context.newCDPSession(addressPage);
+  await addressSession.send('Page.navigate', { url, transitionType: 'typed' }).catch(error => {
+    if (!error.message.includes('closed')) throw error;
+  });
+  await closed(addressTab.id);
+  assert.ok(await api(id => navigationTrace.some(event => event.tabId === id && event.transitionType === 'typed'), addressTab.id));
+  assert.equal(await originalPage.locator('#draft').inputValue(), 'SELECT user_id FROM example_table;');
+  console.log('通过：已有标签地址栏导航（真实 typed 事件）关闭重复页，保留原页输入。');
 
   await popup.locator('#enabled').uncheck();
   await until(async () => (await popup.locator('#mode').innerText()).includes('已暂停'), '暂停生效');

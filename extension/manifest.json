@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "回到已打开",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minimum_chrome_version": "102",
-  "description": "重复打开网页时，关闭新标签页，切回原来的窗口。完整匹配网址，保留查询参数和锚点。",
-  "permissions": ["tabs", "storage"],
+  "description": "新建标签页或从地址栏重复打开网页时，关闭当前标签，切回原来的窗口。完整匹配网址，保留查询参数和锚点。",
+  "permissions": ["tabs", "storage", "webNavigation"],
   "incognito": "not_allowed",
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {

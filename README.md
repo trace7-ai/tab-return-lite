@@ -1,6 +1,6 @@
 # 回到已打开 · Tab Return Lite
 
-Chrome 中文轻量扩展：重复打开网页时，关闭新标签页，切回已经打开的页面及窗口。
+Chrome 中文轻量扩展：重复打开网页时，关闭本次打开的标签页，切回已经打开的页面及窗口。
 
 这是 [Peuj/duplicate-tabs-closer](https://github.com/Peuj/duplicate-tabs-closer) 的精简 fork。保留上游 Git 历史、许可证与图标，针对日常数据开发重新整理运行代码和中文界面。
 
@@ -20,12 +20,13 @@ Chrome 中文轻量扩展：重复打开网页时，关闭新标签页，切回�
 ## 行为约定
 
 - **新开的网页**：首个 HTTP(S) 页面加载完成后，查找相同网址；找到后关闭新页，激活原页并切回原窗口。原窗口最小化时将其恢复。
+- **已有标签的地址栏导航**：粘贴或输入另一个网址并回车，也会在加载完成后检查重复；关闭本次导航所在的标签，回到原页。
 - **保留原页状态**：不刷新、不移动原标签页，因此原页未提交的编辑内容继续保留。
-- **已有网页**：编辑、刷新和站内跳转不触发自动关闭。此前积累的重复页可在弹窗中查看，逐个确认关闭。
+- **已有网页**：编辑、刷新、前进后退和站内跳转不触发自动关闭。此前积累的重复页可在弹窗中查看，逐个确认关闭。
 - **完整匹配网址**：保留路径、查询参数、参数顺序和 `#` 锚点，不按标题或域名合并。
-- **暂停**：开关关闭后允许自由打开重复页；恢复时只处理之后新开的页，不追溯清理。
+- **暂停**：开关关闭后允许自由打开重复页；恢复时只处理之后新建的标签或地址栏导航，不追溯清理。
 - **排除网站**：每行一个域名，例如 `example.com`；该域名及其子域名都允许重复打开，也不列入手动清理。
-- **保护页面**：新页如果已固定或正在播放声音，不自动关闭。手动清理也保护这些页面。
+- **保护页面**：本次打开的标签如果已固定或正在播放声音，不自动关闭。手动清理也保护这些页面。
 - **普通配置文件内运行**：不跨 Chrome 用户配置文件，不在无痕模式运行，不处理 `chrome://`、本地文件或扩展页面。
 
 ## 数据开发场景
@@ -56,11 +57,11 @@ Chrome 中文轻量扩展：重复打开网页时，关闭新标签页，切回�
 
 ## 轻量化
 
-只保留 `tabs` 和 `storage` 两项权限，使用 Chrome Manifest V3 后台事件。无运行时依赖，无内容脚本，无远程请求、统计上报或定时轮询。
+使用 `tabs`、`storage` 和 `webNavigation` 三项权限，使用 Chrome Manifest V3 后台事件。`webNavigation` 用于区分地址栏导航与刷新、前进后退、站内跳转。无运行时依赖，无内容脚本，无远程请求、统计上报或定时轮询。
 
 删除上游的多语言资源、主题系统、图标字体、模糊标题比较、正则规则编辑器、Firefox 容器和 Tree Style Tab 兼容层。保留中文弹窗、跨窗口返回、暂停、网站排除、重复页手动清理。
 
-设置只存储在本机 `storage.local`；候选标签 ID 和加载时间存储在 `storage.session`，不保存浏览历史或网页正文。
+设置只存储在本机 `storage.local`；候选标签 ID、加载时间和待检查的地址栏导航 URL 临时存储在 `storage.session`，检查结束后清除，不持久保存浏览历史或网页正文。
 
 ## 开发与验证
 
@@ -93,4 +94,4 @@ tests/           单元测试和独立浏览器测试
 
 沿用 [GPL-3.0](LICENSE)。上游版本与变更说明见 [NOTICE.md](NOTICE.md)。本分支是独立维护的精简版本，不代表上游作者。
 
-实现参考 Chrome 官方文档：[Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs)、[Windows API](https://developer.chrome.com/docs/extensions/reference/api/windows)、[Storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)、[Service worker 生命周期](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)。
+实现参考 Chrome 官方文档：[Tabs API](https://developer.chrome.com/docs/extensions/reference/api/tabs)、[Windows API](https://developer.chrome.com/docs/extensions/reference/api/windows)、[Storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)、[WebNavigation API](https://developer.chrome.com/docs/extensions/reference/api/webNavigation)、[Service worker 生命周期](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)。

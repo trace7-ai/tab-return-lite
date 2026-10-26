@@ -98,6 +98,74 @@ test('已有页跳转、刷新和首次加载结束后的 SPA 跳转都不自动
   assert.equal(f.tabs.size, 3);
 });
 
+const addressNavigation = (id, extra = {}) => ({
+  tabId: id, frameId: 0, url: URL_A, transitionType: 'typed',
+  transitionQualifiers: ['from_address_bar'], ...extra
+});
+
+test('已有标签粘贴网址回车：等待加载完成，再关闭当前页并保留原页', async () => {
+  const f = fixture([tab(1), tab(2, { status: 'loading' })]);
+  const c = f.controller();
+  await c.committed(addressNavigation(2));
+  assert.equal(f.tabs.size, 2);
+  f.tabs.get(2).status = 'complete';
+  await c.updated(2);
+  assert.deepEqual([...f.tabs.keys()], [1]);
+});
+
+test('地址栏选择建议产生 link 类型时仍可去重', async () => {
+  const f = fixture([tab(1), tab(2)]);
+  await f.controller().committed(addressNavigation(2, { transitionType: 'link' }));
+  assert.deepEqual([...f.tabs.keys()], [1]);
+});
+
+test('刷新、前进后退、站内点击、表单和子框架不会激活已有页去重', async () => {
+  for (const extra of [
+    { transitionType: 'reload' },
+    { transitionQualifiers: ['from_address_bar', 'forward_back'] },
+    { transitionType: 'link', transitionQualifiers: [] },
+    { transitionType: 'form_submit', transitionQualifiers: [] },
+    { frameId: 1 }
+  ]) {
+    const f = fixture([tab(1), tab(2)]);
+    const c = f.controller();
+    await c.committed(addressNavigation(2, extra));
+    await c.updated(2);
+    assert.equal(f.tabs.size, 2);
+  }
+});
+
+test('地址栏资格不沿用到后续站内导航，也不关闭不同查询的页面', async () => {
+  const f = fixture([tab(1), tab(2, { status: 'loading' })]);
+  const c = f.controller();
+  await c.committed(addressNavigation(2));
+  await c.committed(addressNavigation(2, { transitionType: 'link', transitionQualifiers: [] }));
+  f.tabs.get(2).status = 'complete';
+  await c.updated(2);
+  assert.equal(f.tabs.size, 2);
+  f.tabs.get(2).url = URL_A.replace('100', '101');
+  await c.committed(addressNavigation(2, { url: f.tabs.get(2).url }));
+  assert.equal(f.tabs.size, 2);
+});
+
+test('地址栏导航同样遵守暂停、排除、固定、声音和无痕保护', async () => {
+  for (const extra of [{ pinned: true }, { audible: true }, { incognito: true }]) {
+    const f = fixture([tab(1), tab(2, extra)]);
+    await f.controller().committed(addressNavigation(2));
+    assert.equal(f.tabs.size, 2);
+  }
+  for (const settings of [
+    { enabled: false, excludedHosts: [] },
+    { enabled: true, excludedHosts: ['work.example'] }
+  ]) {
+    const f = fixture([tab(1), tab(2)]);
+    const c = f.controller();
+    await c.setSettings(settings);
+    await c.committed(addressNavigation(2));
+    assert.equal(f.tabs.size, 2);
+  }
+});
+
 test('新空白页可稍后输入地址；慢加载超过一分钟不再自动关闭', async () => {
   const f = fixture();
   const c = f.controller();

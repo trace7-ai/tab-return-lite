@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const manifest = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual(manifest.permissions, ['tabs', 'storage']);
+assert.deepEqual(manifest.permissions, ['tabs', 'storage', 'webNavigation']);
 assert.equal(manifest.incognito, 'not_allowed');
 for (const field of ['host_permissions', 'content_scripts', 'externally_connectable']) assert.equal(manifest[field], undefined);
 for (const file of [manifest.background.service_worker, manifest.action.default_popup, ...Object.values(manifest.icons)]) {
@@ -26,4 +26,4 @@ function check(dir) {
 }
 check('extension');
 assert.ok(size < 100_000, `扩展超过 100 KB：${size}`);
-console.log(`检查通过：Manifest V3、两项权限、无远程请求；扩展 ${size} 字节。`);
+console.log(`检查通过：Manifest V3、三项权限、无远程请求；扩展 ${size} 字节。`);

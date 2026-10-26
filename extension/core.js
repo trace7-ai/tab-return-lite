@@ -115,7 +115,7 @@ export function createController(api, now = Date.now) {
     const candidate = session.pending[id];
     if (!candidate) return;
     const tab = await getTab(id);
-    if (!tab || !settings.enabled || now() < session.skipUntil) {
+    if (!tab || !settings.enabled || (now() < session.skipUntil && !candidate.committedUrl)) {
       delete session.pending[id];
       await saveSession();
       return;
@@ -136,6 +136,8 @@ export function createController(api, now = Date.now) {
     // 首个网页加载完成后结束资格，后续编辑和站内跳转不触发。
     delete session.pending[id];
     await saveSession();
+    // 地址栏导航完成前又跳到其他页面时，旧导航资格不能沿用。
+    if (candidate.committedUrl && tab.url !== candidate.committedUrl) return;
     const key = pageKey(tab, settings);
     if (!key || !canClose(tab)) return;
     const tabs = await api.tabs.query({});
@@ -153,6 +155,25 @@ export function createController(api, now = Date.now) {
       await inspect(tab.id);
     }),
     updated: id => run(() => inspect(id)),
+    committed: details => run(async () => {
+      if (details.frameId !== 0) return;
+      const qualifiers = details.transitionQualifiers || [];
+      const fromAddressBar = details.transitionType !== 'reload' &&
+        !qualifiers.includes('forward_back') &&
+        (details.transitionType === 'typed' || qualifiers.includes('from_address_bar'));
+      if (!fromAddressBar) {
+        // 页面点击、表单提交或后退不能继承前一次地址栏导航的去重资格。
+        if (session.pending[details.tabId]?.committedUrl) {
+          delete session.pending[details.tabId];
+          await saveSession();
+        }
+        return;
+      }
+      if (!settings.enabled || !/^https?:\/\//.test(details.url)) return;
+      session.pending[details.tabId] = { startedAt: now(), committedUrl: details.url };
+      await saveSession();
+      await inspect(details.tabId);
+    }),
     removed: id => run(async () => {
       delete session.pending[id];
       await saveSession();

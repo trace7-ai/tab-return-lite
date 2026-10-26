@@ -22,7 +22,7 @@ function action(button, task) {
 function updateMode() {
   $('#enabled').checked = settings.enabled;
   $('#enabled').disabled = false;
-  $('#mode').textContent = settings.enabled ? '已开启 · 新开的重复页自动返回' : '已暂停 · 可以自由打开重复页';
+  $('#mode').textContent = settings.enabled ? '已开启 · 重复打开自动返回' : '已暂停 · 可以自由打开重复页';
 }
 function tabRow(tab, label, task) {
   const row = document.createElement('div');
@@ -74,7 +74,7 @@ $('#enabled').addEventListener('change', async () => {
   $('#enabled').disabled = true;
   try {
     settings = await send('settings', { value: { ...settings, enabled: $('#enabled').checked } });
-    status(settings.enabled ? '已恢复，从之后新开的标签页开始处理。' : '自动去重已暂停。');
+    status(settings.enabled ? '已恢复，从下一次新建标签或地址栏导航开始处理。' : '自动去重已暂停。');
   } catch (error) { status(error.message, true); }
   finally { updateMode(); }
 });

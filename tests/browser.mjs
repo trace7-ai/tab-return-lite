@@ -52,6 +52,16 @@ try {
   });
   context.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   context.on('weberror', error => errors.push(error.error().message));
+  // 本地拦截测试，不请求实际内网站点；复现 Coral 加载时补默认锚点的行为。
+  await context.route('https://data.bytedance.net/coral/datamap/result?*', route => route.fulfill({
+    contentType: 'text/html; charset=utf-8',
+    body: `<!doctype html><title>Coral 初始化测试</title><input id="draft"><script>
+      if (!location.search.includes('groupName=')) {
+        history.replaceState(null, '', location.href + '#group=default');
+        addEventListener('load', () => setTimeout(() => history.replaceState(null, '', location.pathname + location.search), 200));
+      }
+    </script>`
+  }));
   worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
   await api(() => {
     globalThis.navigationTrace = [];
@@ -128,6 +138,29 @@ try {
   assert.ok(await api(id => navigationTrace.some(event => event.tabId === id && event.transitionType === 'typed'), addressTab.id));
   assert.equal(await originalPage.locator('#draft').inputValue(), 'SELECT user_id FROM example_table;');
   console.log('通过：已有标签地址栏导航（真实 typed 事件）关闭重复页，保留原页输入。');
+
+  const coralUrl = 'https://data.bytedance.net/coral/datamap/result?query=fixture_table';
+  const coralOldUrl = coralUrl.replace('?query=', '?groupName=default&query=') + '#group=default';
+  const coralOldPage = await context.newPage();
+  await coralOldPage.goto(coralOldUrl);
+  const coralOld = (await getTabs()).find(tab => tab.url === coralOldPage.url());
+  await settled(coralOld.id);
+  await coralOldPage.locator('#draft').fill('保留原搜索页');
+  const coralNew = await api(url => chrome.tabs.create({ url }), `${base}/coral-start`);
+  await settled(coralNew.id);
+  const coralNewPage = context.pages().find(page => page.url() === `${base}/coral-start`);
+  const coralSession = await context.newCDPSession(coralNewPage);
+  await coralSession.send('Page.navigate', { url: coralUrl, transitionType: 'typed' }).catch(error => {
+    if (!error.message.includes('closed')) throw error;
+  });
+  await closed(coralNew.id);
+  assert.equal(await coralOldPage.locator('#draft').inputValue(), '保留原搜索页');
+  const coralDifferentPage = await context.newPage();
+  await coralDifferentPage.goto(coralUrl + '&groupName=other');
+  const coralDifferent = (await getTabs()).find(tab => tab.url === coralDifferentPage.url());
+  await settled(coralDifferent.id);
+  assert.ok((await getTabs()).some(tab => tab.id === coralDifferent.id));
+  console.log('通过：Coral 默认分组和加载中锚点变化仍去重，非默认分组保留（本地响应模拟）。');
 
   await popup.locator('#enabled').uncheck();
   await until(async () => (await popup.locator('#mode').innerText()).includes('已暂停'), '暂停生效');

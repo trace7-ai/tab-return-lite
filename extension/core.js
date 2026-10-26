@@ -24,7 +24,17 @@ export function pageKey(tab, settings) {
     if (!['http:', 'https:'].includes(url.protocol)) return null;
     if (settings.excludedHosts.some(host =>
       url.hostname === host || url.hostname.endsWith(`.${host}`))) return null;
-    // 保留路径、查询参数、参数顺序和锚点；不按标题猜测同一页面。
+    // Coral 搜索页会在初始化时增删默认分组；只归一化已验证的默认值。
+    // 不处理详情页、非默认分组、其他锚点或重复参数。
+    const groups = url.searchParams.getAll('groupName');
+    if (url.origin === 'https://data.bytedance.net' && url.pathname === '/coral/datamap/result' &&
+        url.searchParams.getAll('query').length === 1 &&
+        (groups.length === 0 || (groups.length === 1 && groups[0] === 'default')) &&
+        (!url.hash || url.hash === '#group=default')) {
+      url.searchParams.delete('groupName');
+      url.hash = '';
+    }
+    // 其他网址保留路径、参数顺序和锚点；不按标题猜测同一页面。
     return url.href;
   } catch {
     return null;
@@ -96,7 +106,7 @@ export function createController(api, now = Date.now) {
   async function closePair(id, keepId, expectedUrl, automatic) {
     const [tab, keep] = await Promise.all([getTab(id), getTab(keepId)]);
     const key = pageKey(tab, settings);
-    if (!tab || !keep || id === keepId || !key || key !== expectedUrl ||
+    if (!tab || !keep || id === keepId || !key || key !== pageKey({ ...tab, url: expectedUrl }, settings) ||
         key !== pageKey(keep, settings) || !canClose(tab) ||
         keep.pendingUrl || keep.status !== 'complete') return false;
     // 焦点切换失败时不关闭源页；不重新加载保留页，以保留编辑状态。
@@ -137,8 +147,8 @@ export function createController(api, now = Date.now) {
     delete session.pending[id];
     await saveSession();
     // 地址栏导航完成前又跳到其他页面时，旧导航资格不能沿用。
-    if (candidate.committedUrl && tab.url !== candidate.committedUrl) return;
     const key = pageKey(tab, settings);
+    if (candidate.committedUrl && key !== pageKey({ ...tab, url: candidate.committedUrl }, settings)) return;
     if (!key || !canClose(tab)) return;
     const tabs = await api.tabs.query({});
     const keep = tabs.find(other => other.id !== id && !session.pending[other.id] &&

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createController, DEFAULT_SETTINGS, pageKey, normalizeHosts, duplicateGroups } from '../extension/core.js';
 
 const URL_A = 'https://work.example/report?id=100&project=demo#sql';
+const CORAL = 'https://data.bytedance.net/coral/datamap/result?query=example_table';
 const tab = (id, extra = {}) => ({ id, windowId: 1, url: URL_A, status: 'complete', active: false, ...extra });
 
 function fixture(initial = [tab(1)]) {
@@ -56,6 +57,40 @@ test('排除域名含子域名，但不误匹配相似域名', () => {
   assert.ok(pageKey(tab(1, { url: 'https://notexample.com/' }), settings));
   assert.throws(() => normalizeHosts('example.com/path'));
   assert.throws(() => normalizeHosts('*.example.com'));
+});
+
+test('Coral 搜索页默认分组参数等价，搜索词及其他业务参数仍区分', () => {
+  const key = url => pageKey(tab(1, { url }), DEFAULT_SETTINGS);
+  for (const url of [CORAL + '#group=default', CORAL + '&groupName=default',
+    CORAL.replace('?query=', '?groupName=default&query=') + '#group=default']) {
+    assert.equal(key(url), key(CORAL));
+  }
+  for (const url of [CORAL + '&groupName=other#group=default', CORAL + '#group=other',
+    CORAL.replace('example_table', 'another_table'), CORAL + '&filter=1',
+    CORAL + '&groupName=default&groupName=other', CORAL + '#group=default&view=sql']) {
+    assert.notEqual(key(url), key(CORAL));
+  }
+  for (const url of [CORAL.replace('data.bytedance.net', 'work.example'),
+    CORAL.replace('/result?', '/detail?')]) {
+    assert.notEqual(key(url), key(url + '#group=default'));
+  }
+});
+
+test('Coral 地址栏导航加载中补默认分组，仍去重并保留原页', async () => {
+  const f = fixture([tab(1, { url: CORAL }), tab(2, { url: CORAL, status: 'loading' })]);
+  const c = f.controller();
+  await c.committed(addressNavigation(2, { url: CORAL }));
+  Object.assign(f.tabs.get(2), { url: CORAL + '#group=default', status: 'complete' });
+  await c.updated(2);
+  assert.deepEqual([...f.tabs.keys()], [1]);
+});
+
+test('Coral 手动关闭接受页面的实际 URL，搜索词变化后拒绝关闭', async () => {
+  const actual = CORAL + '&groupName=default#group=default';
+  const f = fixture([tab(1, { url: CORAL }), tab(2, { url: actual })]);
+  assert.equal(await f.controller().closeDuplicate(2, 1, actual), true);
+  const changed = fixture([tab(1, { url: CORAL }), tab(2, { url: CORAL + '2' })]);
+  assert.equal(await changed.controller().closeDuplicate(2, 1, actual), false);
 });
 
 test('跨窗口重复页关闭新页，激活旧页并还原最小化窗口', async () => {

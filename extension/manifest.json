@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "回到已打开",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minimum_chrome_version": "102",
-  "description": "新建标签页或从地址栏重复打开网页时，关闭当前标签，切回原来的窗口。完整匹配网址，保留查询参数和锚点。",
+  "description": "新建标签页或从地址栏重复打开网页时，关闭当前标签，切回原来的窗口。按网址匹配，兼容 Coral 搜索页默认分组。",
   "permissions": ["tabs", "storage", "webNavigation"],
   "incognito": "not_allowed",
   "background": { "service_worker": "background.js", "type": "module" },
